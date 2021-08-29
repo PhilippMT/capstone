@@ -55,14 +55,25 @@ jobs:
             ./hadolint docker/Dockerfile
       - run:
           name: Login to dockerhub
-          command: docker login --username $DOCKER_USER --password $DOCKER_PASSWORD
+          command: echo "$DOCKER_PASSWORD" | docker login --username $DOCKER_USER --password-stdin
       - run:
-          name: Test
+          name: Build index.html with CIRCLE_WORKFLOW_ID
           command: |
-            set -x
-            yum || true
-            apt || true
-            apk || true
+            cd docker
+            apt update
+            apt install -y gettext-base
+            envsubst < index.html.tpl > index.html
+            echo "------------------------------------------------------"
+            cat index.html
+            echo "------------------------------------------------------"
+      - run:
+          name: Build docker image
+          command: |
+            cd docker
+            docker build -t philippmt/capstone:${CIRCLE_WORKFLOW_ID} .
+      - run:
+          name: Push docker image
+          command: docker push philippmt/capstone:${CIRCLE_WORKFLOW_ID}
 
 # Orchestrate or schedule a set of jobs
 workflows:
