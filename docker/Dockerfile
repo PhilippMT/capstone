@@ -5,4 +5,4 @@ COPY index.html index.html
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 
-MD ["nginx", "-g", "daemon off;"]
+CMD ["nginx", "-g", "daemon off;"]
