@@ -86,7 +86,7 @@ jobs:
           name: Install dependencies
           command: apk add gettext
       - run:
-          name: Install aws-iam-authenticator
+          name: Do deployment
           command: |
             cd deployment/
             # Check if there are errors in the service.yaml first
