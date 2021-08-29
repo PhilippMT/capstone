@@ -15,7 +15,7 @@ jobs:
           name: Install dependencies
           command: |
             # tar for workspace
-            yum install -y tar
+            yum install -y tar gzip
             # Kubectl
             cat \<<EOF > /etc/yum.repos.d/kubernetes.repo
             [kubernetes]
@@ -42,6 +42,27 @@ jobs:
           root: ~/
           paths:
             - .kube
+  
+  build-docker-image:
+    machine: true
+    steps:
+      - checkout
+      - run:
+          name: Lint docker image
+          command: |
+            wget -O ./hadolint https://github.com/hadolint/hadolint/releases/download/v1.16.3/hadolint-Linux-x86_64
+            chmod +x ./hadolint
+            hadolint docker/Dockerfile
+      - run:
+          name: Login to dockerhub
+          command: docker login --username $DOCKER_USER --password $DOCKER_PASSWORD
+      - run:
+          name: Test
+          command: |
+            set -x
+            yum || true
+            apt || true
+            apk || true
 
 # Orchestrate or schedule a set of jobs
 workflows:
@@ -51,3 +72,4 @@ workflows:
     jobs:
       - welcome/run
       - deploy-infrastructure
+      - build-docker-image
