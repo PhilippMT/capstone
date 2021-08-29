@@ -113,6 +113,7 @@ jobs:
             #######################################################
             if [[ ! -z $exit_code && $exit_code != 0 ]]; then
               kubectl rollout undo deployment/nginx-deployment
+              exit $exit_code
             fi
   
   smoke-test:
