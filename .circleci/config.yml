@@ -116,7 +116,7 @@ jobs:
           at: ~/
       - run:
           name: Execute test
-          command: curl -v 18.158.72.108:80 | grep ${CIRCLE_WORKFLOW_ID}
+          command: curl -v 18.158.72.108:30007 | grep ${CIRCLE_WORKFLOW_ID}
       - run:
           name: Rollback changes
           when: on_fail
