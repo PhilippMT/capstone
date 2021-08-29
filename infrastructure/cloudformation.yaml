@@ -41,8 +41,8 @@ Resources:
       GroupId: !GetAtt CapstoneCluster.ClusterSecurityGroupId
       IpProtocol: tcp
       CidrIp: 0.0.0.0/0
-      FromPort: 80
-      ToPort: 80
+      FromPort: 30007
+      ToPort: 30007
   
   # Create role for node-group
   NodeInstanceRole:

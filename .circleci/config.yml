@@ -36,7 +36,10 @@ jobs:
             set -x
             aws cloudformation deploy --stack-name capstone --template-file infrastructure/cloudformation.yaml --capabilities CAPABILITY_IAM
             aws eks update-kubeconfig --name capstone-cluster
-            kubectl get pods -A
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - .kube
 
 # Orchestrate or schedule a set of jobs
 workflows:
