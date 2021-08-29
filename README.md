@@ -1,5 +1,14 @@
 # capstone
 
+# Github Repo: 
+https://github.com/PhilippMT/capstone
+
+# Links for testing
+http://18.158.72.108:30007/
+http://3.122.118.206:30007/
+
+# Pipeline
+
 ## Infrastructure (First step in the pipeline)
 The infrastructure/ folder contains a relativly simple EKS cloudformation deployment. The EKS is only deployed once and will be updated automatically in the pipeline if there are changes in the "infrastructure/cloudformation.yaml" file.
 
