@@ -101,6 +101,8 @@ jobs:
             # Wait for nginx deployment to finish
             kubectl rollout status deployment/nginx-deployment || exit_code=$?
 
+            echo "Deployment ExitCode: $exit_code"
+
             if [[ $exit_code != 0 ]]; then
               kubectl rollout undo deployment/nginx-deployment
             fi
