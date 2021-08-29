@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Amazon EKS Cluster Role'
+
+Parameters:
+  Subnets:
+    Description: List of subnets for the eks cluster
+    Type: CommaDelimitedList
+    Default: "subnet-6856d724, subnet-e9367183, subnet-41ae1c3d"
+
+Resources:
+  # Create role for cluster
+  EksClusterRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - eks.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+
+  # Create kubernetes cluster
+  CapstoneCluster:
+    Type: 'AWS::EKS::Cluster'
+    Properties:
+      Name: !Sub "${AWS::StackName}-cluster"
+      Version: '1.21'
+      RoleArn: !GetAtt EksClusterRole.Arn
+      ResourcesVpcConfig:
+        SubnetIds: !Ref Subnets
+  
+  # Add ingress rule to EKS security group to allow acces on port 80
+  ClusterExternalAccessIngress:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !GetAtt CapstoneCluster.ClusterSecurityGroupId
+      IpProtocol: tcp
+      CidrIp: 0.0.0.0/0
+      FromPort: 80
+      ToPort: 80
+  
+  # Create role for node-group
+  NodeInstanceRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+      Path: /
+  
+  EKSNodegroup:
+    Type: 'AWS::EKS::Nodegroup'
+    Properties:
+      ClusterName: !Ref CapstoneCluster
+      NodeRole: !GetAtt NodeInstanceRole.Arn
+      AmiType: AL2_x86_64
+      CapacityType: SPOT
+      InstanceTypes:
+        - t3.micro
+        - t3.small
+      ScalingConfig:
+        MinSize: 1
+        DesiredSize: 2
+        MaxSize: 2
+      Labels:
+        Key1: Value1
+        Key2: Value2
+      Subnets: !Ref Subnets
+  
+  VpcCniAddon:
+    Type: 'AWS::EKS::Addon'
+    DependsOn: EKSNodegroup
+    Properties:
+      AddonName: vpc-cni
+      ClusterName: !Ref CapstoneCluster
+
+  CoreDnsAddon:
+    Type: 'AWS::EKS::Addon'
+    DependsOn: EKSNodegroup
+    Properties:
+      AddonName: coredns
+      ClusterName: !Ref CapstoneCluster
+  
+  KubeProxyAddon:
+    Type: 'AWS::EKS::Addon'
+    DependsOn: EKSNodegroup
+    Properties:
+      AddonName: kube-proxy
+      ClusterName: !Ref CapstoneCluster
