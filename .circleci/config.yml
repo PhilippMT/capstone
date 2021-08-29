@@ -77,22 +77,49 @@ jobs:
   
   deploy:
     docker:
-      - image: bitnami/kubectl:1.21.4
+      - image: alpine/k8s:1.21.2
     steps:
       - checkout
       - attach_workspace:
           at: ~/
       - run:
+          name: Install dependencies
+          command: apk add gettext
+      - run:
           name: Install aws-iam-authenticator
           command: |
-            dir
-            cd ~
-            dir
-            # aws-iam-authenticator
-            curl -o aws-iam-authenticator https://amazon-eks.s3.us-west-2.amazonaws.com/1.21.2/2021-07-05/bin/linux/amd64/aws-iam-authenticator
-            chmod +x ./aws-iam-authenticator
-            mv ./aws-iam-authenticator /usr/local/bin
-            
+            cd deployment/
+            # Check if there are errors in the service.yaml first
+            kubectl apply -f service.yaml --dry-run=server
+            kubectl apply -f service.yaml
+
+            # Check if there are errors in the deployment.yaml first
+            envsubst < deployment.yaml > deployment-rendered.yaml
+            kubectl apply -f deployment-rendered.yaml --dry-run=server
+            kubectl apply -f deployment-rendered.yaml
+
+            # Wait for nginx deployment to finish
+            kubectl rollout status deployment/nginx-deployment || exit_code=$?
+
+            if [[ $exit_code != 0 ]]; then
+              kubectl rollout undo deployment/nginx-deployment
+            fi
+  
+  smoke-test:
+    docker:
+      - image: alpine/k8s:1.21.2
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/
+      - run:
+          name: Execute test
+          command: curl -v 18.158.72.108:80 | grep ${CIRCLE_WORKFLOW_ID}
+      - run:
+          name: Rollback changes
+          when: on_fail
+          command: 
+            kubectl rollout undo deployment/nginx-deployment
 
 # Orchestrate or schedule a set of jobs
 workflows:
@@ -102,7 +129,9 @@ workflows:
     jobs:
       - welcome/run
       - deploy-infrastructure
-      - build-docker-image #:
-          #requires: [deploy-infrastructure]
-      - deploy #:
-          #requires: [build-docker-image]
+      - build-docker-image:
+          requires: [deploy-infrastructure]
+      - deploy:
+          requires: [build-docker-image]
+      - smoke-test:
+          requires: [deploy]
