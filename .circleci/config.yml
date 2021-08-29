@@ -1,6 +1,10 @@
 version: 2.1
 
 jobs:
+  # Deploy the EKS infrastructure. There is only one cluster.
+  # If there are changes in the cloudformation.yaml the changes will be deployed here
+  # If there are no changes -> cloudformation just does nothing
+  # The kubeconfig file for kubectl is also extraced here and passed to the other stages
   deploy-infrastructure:
     docker:
       - image: amazon/aws-cli
@@ -31,13 +35,20 @@ jobs:
           name: Deploy EKS
           command: |
             set -x
+            # Deploy changes to the EKS
             aws cloudformation deploy --stack-name capstone --template-file infrastructure/cloudformation.yaml --capabilities CAPABILITY_IAM
+            # Get the kubeconfig file for the EKS cluster. It is saved unter ~/.kube/config
             aws eks update-kubeconfig --name capstone-cluster
       - persist_to_workspace:
           root: ~/
           paths:
+            # Save kubeconfig for the other jobs
             - .kube
   
+  # The job build a docker image based on nginx but replaces the index.html
+  # The index.html contains the ${CIRCLE_WORKFLOW_ID} variable so you can see that the deployment was successfull
+  # The pushed image has a tag like "philippmt/capstone:${CIRCLE_WORKFLOW_ID}"
+  # So there is a tag/image for each run
   build-docker-image:
     machine: true
     steps:
@@ -57,6 +68,7 @@ jobs:
             cd docker
             sudo apt update
             sudo apt install -y gettext-base
+            # Use envsubst to replace ${CIRCLE_WORKFLOW_ID} with the value in index.html
             envsubst < index.html.tpl > index.html
             echo "------------------------------------------------------"
             cat index.html
@@ -70,6 +82,11 @@ jobs:
           name: Push docker image
           command: docker push philippmt/capstone:${CIRCLE_WORKFLOW_ID}
   
+  # This job deployes the service.yaml and deployment.yaml
+  # The deployment.yaml has an placeholder for the ${CIRCLE_WORKFLOW_ID} in the image-tag
+  # The value is replaced before deployment
+  # The rolling-deployment starts a new pod with the new image and onöy shuts the old one down
+  # when the new pod was starting successfully
   deploy:
     docker:
       - image: alpine/k8s:1.21.2
@@ -93,6 +110,10 @@ jobs:
             kubectl apply -f deployment-rendered.yaml --dry-run=server
             kubectl apply -f deployment-rendered.yaml
   
+  # The test stage first waits for the rolling-deployment to finish or to timeout
+  # If it was successfull a smoke-test happens that checks if nginx is serving the correct ${CIRCLE_WORKFLOW_ID} in its index.html
+  # If the rollout fails or the smoke-test fails, the rollout is undone with in the last run
+  # So the previously sucessfully deployed working version is present again
   smoke-test:
     docker:
       - image: alpine/k8s:1.21.2
@@ -102,9 +123,11 @@ jobs:
           at: ~/
       - run:
           name: Wait for rollout to completed
+          # Wait max. 30s for timeout -  this is enough for this project
           command: kubectl rollout status deployment/nginx-deployment --timeout 30s
       - run:
           name: Execute smoke-test
+          # Check if the index.html contains the corrent ${CIRCLE_WORKFLOW_ID}
           command: curl -v 18.158.72.108:30007 | grep ${CIRCLE_WORKFLOW_ID}
       - run:
           name: Rollback changes
