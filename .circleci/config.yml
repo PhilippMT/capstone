@@ -99,11 +99,19 @@ jobs:
             kubectl apply -f deployment-rendered.yaml
 
             # Wait for nginx deployment to finish
+            # Catch exit code if this fails
             kubectl rollout status deployment/nginx-deployment || export exit_code=$?
 
             echo "Deployment ExitCode: $exit_code"
 
-            if [[ $exit_code != 0 ]]; then
+            #######################################################
+            #
+            # Only undo rollout if "rollout status..." failed because
+            # if the previous steps fail the deployment is not done ye
+            # and a older working version would be rolled back
+            #
+            #######################################################
+            if [[ ! -z $exit_code && $exit_code != 0 ]]; then
               kubectl rollout undo deployment/nginx-deployment
             fi
   
