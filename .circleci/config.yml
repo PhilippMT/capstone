@@ -102,7 +102,7 @@ workflows:
     jobs:
       - welcome/run
       - deploy-infrastructure
-      - build-docker-image:
+      - build-docker-image #:
           #requires: [deploy-infrastructure]
-      - deploy:
+      - deploy #:
           #requires: [build-docker-image]
