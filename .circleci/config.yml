@@ -92,24 +92,6 @@ jobs:
             envsubst < deployment.yaml > deployment-rendered.yaml
             kubectl apply -f deployment-rendered.yaml --dry-run=server
             kubectl apply -f deployment-rendered.yaml
-
-            # Wait for nginx deployment to finish
-            # Catch exit code if this fails
-            kubectl rollout status deployment/nginx-deployment || export exit_code=$?
-
-            echo "Deployment ExitCode: $exit_code"
-
-            #######################################################
-            #
-            # Only undo rollout if "rollout status..." failed because
-            # if the previous steps fail the deployment is not done ye
-            # and a older working version would be rolled back
-            #
-            #######################################################
-            if [[ ! -z $exit_code && $exit_code != 0 ]]; then
-              kubectl rollout undo deployment/nginx-deployment
-              exit $exit_code
-            fi
   
   smoke-test:
     docker:
@@ -119,7 +101,10 @@ jobs:
       - attach_workspace:
           at: ~/
       - run:
-          name: Execute test
+          name: Wait for rollout to completed
+          command: kubectl rollout status deployment/nginx-deployment --timeout 30s
+      - run:
+          name: Execute smoke-test
           command: curl -v 18.158.72.108:30007 | grep ${CIRCLE_WORKFLOW_ID}
       - run:
           name: Rollback changes
