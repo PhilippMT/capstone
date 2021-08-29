@@ -69,7 +69,7 @@ Resources:
       ClusterName: !Ref CapstoneCluster
       NodeRole: !GetAtt NodeInstanceRole.Arn
       AmiType: AL2_x86_64
-      CapacityType: SPOT
+      CapacityType: ON_DEMAND
       InstanceTypes:
         - t3.micro
         - t3.small
@@ -78,8 +78,7 @@ Resources:
         DesiredSize: 2
         MaxSize: 2
       Labels:
-        Key1: Value1
-        Key2: Value2
+        project: capstone
       Subnets: !Ref Subnets
   
   VpcCniAddon:
